@@ -1,0 +1,149 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml">
+    <!-- mdprocess version 1.2; see ./LICENSE and ./changelog.md for more information -->
+    <head>
+        <meta charset="utf-8" />
+        <title>Markdown to HTML/PDF</title>
+        <link rel="stylesheet" href="dotsies/fonts.css" />
+        <!--<link rel="stylesheet" href="../rtensor/maths.css" />-->
+        <link rel="stylesheet" href="prism.css" />
+        <style>
+            @media print {
+                #setup {
+                    display: none;
+                }
+            }
+        </style>
+        <style id="editss">
+
+        </style>
+        <link rel="shortcut icon" type="image/svg+xml" href="icon.svg" />
+    </head>
+    <body>
+        <div id="setup">
+            <textarea id="inpmd" cols="72" rows="20">Put your Markdown *here* ...</textarea>
+            <p id="controls">
+                <label><input type="checkbox" id="autorc" checked="checked" /> Auto-recompile</label>
+                <button id="compile">Compile</button>
+            </p>
+            <details>
+                <summary>stylesheet</summary>
+                <select id="ssps">
+                    <option value="stac">&quot;Standard&quot; academic</option>
+                    <option value="slide">Slideshow</option>
+                    <option selected="selected" value="cas">Casual</option>
+                    <option value="latex">LaTeX-like</option>
+                    <option value="cust">Custom</option>
+                </select><br />
+                <textarea id="inpss" cols="72" rows="20"></textarea>
+            </details>
+        </div>
+        <div id="outpdoc"></div>
+        <script>window.onerror = (m, s, l, c, e) => alert(`${s}:${l}:${c}: ${m}`);</script>
+        <script src="commonmark.js"></script>
+        <script>
+            "use strict";
+            document.gebi = document.getElementById;
+            const createNodes = nl => nl.map(([t, l]) => {
+                const n = new commonmark.Node(t); n.literal = l; return n; });
+            const textManip = [];
+            const astManip = [];
+            const onDone = [
+                t => (document.gebi("outpdoc").innerHTML = t),
+            ];
+            onDone[0].displayName = "Write to #outpdoc";
+            function processMd(p, r) {
+                let inpText = document.gebi("inpmd").value;
+                for (const mf of textManip) { if (mf.on) { inpText = mf(inpText); } }
+                let ast = p.parse(inpText);
+                for (const mf of astManip) { if (mf.on) { ast = mf(ast); } }
+                const rendered = r.render(ast);
+                onDone.forEach(f => f.on ? f(rendered) : 0);
+            }
+            const condUpdate = (p, r) => document.gebi("autorc").checked ? processMd(p, r) : 0;
+            let cmr = new commonmark.Parser();
+            let cmw = new commonmark.HtmlRenderer();
+            document.gebi("compile").onclick = _ => processMd(cmr, cmw);
+            document.gebi("inpmd").onchange = _ev => condUpdate(cmr, cmw);
+            const stripIndent = x => x.replaceAll(/([ ]{4}|\t)+/g, "");
+            const PRESETS = {
+                stac: stripIndent(`
+                    #outpdoc { font-family: "Times New Roman", "Noto Serif", serif; font-size: 12pt; line-height: 2; }
+                    #outpdoc p { text-indent: 2em; }
+                    #outpdoc code { font-family: "Courier New", "Noto Sans Mono", monospace; font-size: 90%; padding: 0.03em 0.2em; border: 1px solid grey; }
+                    #outpdoc pre { padding: 0.15em 0.3em; border: 1px solid grey; }
+                    #outpdoc pre code { font-size: 105%; padding: 0; border: none; }
+                    #outpdoc h1, #outpdoc h2, #outpdoc h3 { font-family: "Arial", "Noto Sans", sans-serif; }
+                `),
+                slide: stripIndent(`
+                    body { background-color: black; }
+                    #outpdoc { margin: 1em; background-color: black; color: white; font-family: sans-serif; text-align: center; }
+                    #outpdoc ul { display: flex; flex-direction: column; justify-content: center; align-items: flex-start; align-content: center; }
+                    #outpdoc h1, #outpdoc h2 { page-break-before: always; }
+                    #outpdoc a { color: lightblue; }
+                `),
+                cas: stripIndent(`
+                    #outpdoc { font-family: serif; line-height: 1.2; column-count: 1; column-rule: 2px solid black; }
+                    .pretoc + ul li { list-style-type: none; }
+                    #outpdoc p { margin: 0; }
+                    #outpdoc p + p { text-indent: 2em; }
+                    #outpdoc code { font-family: monospace; padding: 0.03em 0.2em; border: 1px dotted grey; }
+                    #outpdoc .lang { font-family: sans-serif; float: right; padding: 0.2em; }
+                    #outpdoc pre { margin: 0; padding: 0.15em 0.3em; border: 1px solid grey; }
+                    #outpdoc pre code { font-size: 105%; padding: 0; border: none; }
+                    #outpdoc h1, #outpdoc h2 { text-align: center; }
+                    #outpdoc h2 { border-bottom: 1px solid black; }
+                    #outpdoc h1, #outpdoc h2, #outpdoc h3 { font-family: sans-serif; text-indent: 0; }
+                    #outpdoc blockquote { margin: 1em 0 1em 8px; padding-left: 0.5em; border-left: 4px solid grey; border-radius: 9px; }
+                    #outpdoc img { width: 70%; margin-left: 15%; margin-right: 15%; }
+                    #outpdoc .table td { border: 1px solid black; padding: 0.2em; }
+                    #outpdoc .maths { text-align: center; }
+                `),
+                latex: stripIndent(`
+                    #outpdoc { font-family: "Computer Modern", "Caladea", "Garamond", serif; text-align: justify; }
+                    #outpdoc code { font-family: "Noto Sans Mono", monospace; }
+                    #outpdoc p { margin: 0; }
+                    #outpdoc p + p { text-indent: 2em; }
+                `)
+            };
+            document.gebi("inpss").value = PRESETS.cas;
+            document.gebi("editss").innerHTML = PRESETS.cas;
+            document.gebi("ssps").onchange = ev => {
+                document.gebi("inpss").value = PRESETS[ev.target.value];
+                document.gebi("editss").innerHTML = PRESETS[ev.target.value];
+            };
+            document.gebi("inpss").onchange = ev => {
+                document.gebi("ssps").value = "cust";
+                document.gebi("editss").innerHTML = ev.target.value;
+            };
+            window.onload = () => {
+                const addCb = t => ((f, i) => {
+                    const sl = document.createElement("label");
+                    sl.innerText = " " + (f.displayName || f.name || i);
+                    const cb = document.createElement("input");
+                    cb.type = "checkbox";
+                    cb.checked = true;
+                    f.on = true;
+                    cb.onchange = ev => { f.on = cb.checked; processMd(cmr, cmw); };
+                    cb.id = t + i;
+                    sl.prepend(cb);
+                    document.gebi("controls").append(sl);
+                });
+                textManip.forEach(addCb("tmcb"));
+                astManip.forEach(addCb("amcb"));
+                onDone.forEach(addCb("odcb"));
+            };
+        </script>
+        <script src="ext_table_contents.js"></script>
+        <script src="ext_syntax_highlight.js"></script>
+        <script src="ext_heading_frag.js"></script>
+        <script src="ext_lang_indicator.js"></script>
+        <script src="ext_table_render.js"></script>
+        <!--<script src="ext_vecalc_render.js"></script>-->
+        <script src="ext_inline_code.js"></script>
+        <script src="ext_show_edited.js"></script>
+        <script src="ext_html_source.js"></script>
+        <script src="ext_xml_ast.js"></script>
+    </body>
+</html>
